@@ -1,44 +1,61 @@
-"use client"
+"use client";
 
-import type React from "react"
-
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Award, Eye, EyeOff } from "lucide-react"
-import Link from "next/link"
-import Image from "next/image"
+import type React from "react";
+import { useState } from "react";
+import { signIn } from "next-auth/react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Award, Eye, EyeOff } from "lucide-react";
+import Link from "next/link";
+import Image from "next/image";
 
 export default function LoginPage() {
-  const [showPassword, setShowPassword] = useState(false)
+  const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
     email: "",
     password: "",
-  })
-  const [errors, setErrors] = useState<Record<string, string>>({})
+  });
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [loading, setLoading] = useState(false);
+  const [serverError, setServerError] = useState("");
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setServerError("");
+    setLoading(true);
 
-    const newErrors: Record<string, string> = {}
+    const newErrors: Record<string, string> = {};
 
     if (!formData.email.trim()) {
-      newErrors.email = "Email is required"
+      newErrors.email = "Email is required";
     }
-
     if (!formData.password) {
-      newErrors.password = "Password is required"
+      newErrors.password = "Password is required";
+    }
+    setErrors(newErrors);
+
+    if (Object.keys(newErrors).length > 0) {
+      setLoading(false);
+      return;
     }
 
-    setErrors(newErrors)
+    // NextAuth v5 credentials login
+    const res = await signIn("credentials", {
+      redirect: false,
+      email: formData.email,
+      password: formData.password,
+    });
 
-    if (Object.keys(newErrors).length === 0) {
-      // Simulate successful login
-      window.location.href = "/dashboard"
+    setLoading(false);
+
+    if (res?.error) {
+      setServerError("Invalid email or password");
+    } else {
+      window.location.href = "/dashboard";
     }
-  }
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
@@ -78,6 +95,8 @@ export default function LoginPage() {
             </CardHeader>
             <CardContent>
               <form onSubmit={handleSubmit} className="space-y-4">
+                {serverError && <p className="text-sm text-red-500">{serverError}</p>}
+
                 <div className="space-y-2">
                   <Label htmlFor="email">Email Address</Label>
                   <Input
@@ -135,8 +154,12 @@ export default function LoginPage() {
                   </Link>
                 </div>
 
-                <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700">
-                  Sign In
+                <Button
+                  type="submit"
+                  className="w-full bg-blue-600 hover:bg-blue-700"
+                  disabled={loading}
+                >
+                  {loading ? "Signing In..." : "Sign In"}
                 </Button>
               </form>
             </CardContent>
@@ -153,5 +176,5 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
-  )
+  );
 }

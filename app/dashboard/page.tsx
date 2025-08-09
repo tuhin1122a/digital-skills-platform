@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Trophy, Clock, Target, TrendingUp, Play, CheckCircle, Lock } from "lucide-react"
 import Link from "next/link"
+import { auth } from "@/auth"
 
 const progressData = [
   { level: "A1", status: "completed", score: 85, unlocked: true },
@@ -44,8 +45,11 @@ const stats = [
   },
 ]
 
-export default function DashboardPage() {
+export default async function DashboardPage() {
+  const session = await auth()
+  console.log(session?.user)
   const nextAvailableTest = progressData.find((item) => item.status === "available")
+
 
   return (
     <div className="space-y-8">

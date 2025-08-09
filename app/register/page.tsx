@@ -1,69 +1,151 @@
-"use client"
+"use client";
 
-import type React from "react"
-
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Award, Eye, EyeOff, Mail, CheckCircle } from "lucide-react"
-import Link from "next/link"
-import Image from "next/image"
+import React, { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Award, Eye, EyeOff, Mail, CheckCircle } from "lucide-react";
+import Link from "next/link";
+import Image from "next/image";
 
 export default function RegisterPage() {
-  const [showPassword, setShowPassword] = useState(false)
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
-  const [showOTPModal, setShowOTPModal] = useState(false)
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [showOTPModal, setShowOTPModal] = useState(false);
   const [formData, setFormData] = useState({
     fullName: "",
     email: "",
     password: "",
     confirmPassword: "",
-  })
-  const [otp, setOtp] = useState("")
-  const [errors, setErrors] = useState<Record<string, string>>({})
+  });
+  const [otp, setOtp] = useState("");
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [otpError, setOtpError] = useState("");
+  const [resendMessage, setResendMessage] = useState("");
+  const [isResending, setIsResending] = useState(false);
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [isRegistering, setIsRegistering] = useState(false); // নতুন
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (isRegistering) return; // Prevent double submit
 
     // Basic validation
-    const newErrors: Record<string, string> = {}
+    const newErrors: Record<string, string> = {};
 
     if (!formData.fullName.trim()) {
-      newErrors.fullName = "Full name is required"
+      newErrors.fullName = "Full name is required";
     }
 
     if (!formData.email.trim()) {
-      newErrors.email = "Email is required"
+      newErrors.email = "Email is required";
     } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
-      newErrors.email = "Please enter a valid email"
+      newErrors.email = "Please enter a valid email";
     }
 
     if (!formData.password) {
-      newErrors.password = "Password is required"
+      newErrors.password = "Password is required";
     } else if (formData.password.length < 8) {
-      newErrors.password = "Password must be at least 8 characters"
+      newErrors.password = "Password must be at least 8 characters";
     }
 
     if (formData.password !== formData.confirmPassword) {
-      newErrors.confirmPassword = "Passwords do not match"
+      newErrors.confirmPassword = "Passwords do not match";
     }
 
-    setErrors(newErrors)
+    setErrors(newErrors);
 
     if (Object.keys(newErrors).length === 0) {
-      setShowOTPModal(true)
-    }
-  }
+      setIsRegistering(true);
+      try {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/register`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: formData.fullName.trim(),
+            email: formData.email,
+            password: formData.password,
+          }),
+        });
 
-  const handleOTPVerification = () => {
-    if (otp.length === 6) {
-      // Simulate successful verification
-      window.location.href = "/dashboard"
+        if (!res.ok) {
+          const errorData = await res.json();
+          setErrors({ apiError: errorData.message || "Registration failed" });
+          setIsRegistering(false);
+          return;
+        }
+
+        // Registration success - show OTP modal
+        setShowOTPModal(true);
+      } catch (error) {
+        setErrors({ apiError: "Something went wrong. Please try again." });
+      } finally {
+        setIsRegistering(false);
+      }
     }
-  }
+  };
+
+  const handleOTPVerification = async () => {
+    if (otp.length !== 6) {
+      setOtpError("Please enter a 6-digit OTP code.");
+      return;
+    }
+    setOtpError("");
+    setIsVerifying(true);
+
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/verify-otp`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: formData.email,
+          otpCode: otp,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setOtpError(data.message || "OTP verification failed");
+      } else {
+        setShowOTPModal(false);
+        window.location.href = "/dashboard";
+      }
+    } catch (error) {
+      setOtpError("Something went wrong. Please try again.");
+    } finally {
+      setIsVerifying(false);
+    }
+  };
+
+  const handleResendOTP = async () => {
+    setResendMessage("");
+    setIsResending(true);
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/resend-otp`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: formData.email,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setResendMessage(data.message || "Failed to resend OTP");
+      } else {
+        setResendMessage("OTP sent successfully. Please check your email.");
+      }
+    } catch (error) {
+      setResendMessage("Something went wrong. Please try again.");
+    } finally {
+      setIsResending(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
@@ -185,8 +267,14 @@ export default function RegisterPage() {
                   {errors.confirmPassword && <p className="text-sm text-red-500">{errors.confirmPassword}</p>}
                 </div>
 
-                <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700">
-                  Register
+                {errors.apiError && <p className="text-sm text-red-600">{errors.apiError}</p>}
+
+                <Button
+                  type="submit"
+                  className="w-full bg-blue-600 hover:bg-blue-700"
+                  disabled={isRegistering}
+                >
+                  {isRegistering ? "Registering..." : "Register"}
                 </Button>
               </form>
             </CardContent>
@@ -228,25 +316,32 @@ export default function RegisterPage() {
                 className="text-center text-lg tracking-widest"
                 maxLength={6}
               />
+              {otpError && <p className="text-sm text-red-500">{otpError}</p>}
             </div>
 
             <Button
               onClick={handleOTPVerification}
               className="w-full bg-blue-600 hover:bg-blue-700"
-              disabled={otp.length !== 6}
+              disabled={otp.length !== 6 || isVerifying}
             >
               <CheckCircle className="h-4 w-4 mr-2" />
-              Verify Email
+              {isVerifying ? "Verifying..." : "Verify Email"}
             </Button>
 
             <div className="text-center">
-              <Button variant="link" className="text-sm text-gray-600">
-                Didn't receive the code? Resend
+              <Button
+                variant="link"
+                className="text-sm text-gray-600"
+                onClick={handleResendOTP}
+                disabled={isResending}
+              >
+                {isResending ? "Resending..." : "Didn't receive the code? Resend"}
               </Button>
+              {resendMessage && <p className="mt-2 text-sm text-green-600">{resendMessage}</p>}
             </div>
           </div>
         </DialogContent>
       </Dialog>
     </div>
-  )
+  );
 }
