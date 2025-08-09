@@ -9,8 +9,8 @@ import { signOut } from "next-auth/react"
 
 const sidebarItems = [
   { icon: Home, label: "Home", href: "/dashboard" },
-  { icon: FileText, label: "My Tests", href: "/dashboard/tests" },
-  { icon: AwardIcon, label: "Certificates", href: "/dashboard/certificates" },
+  { icon: FileText, label: "My Tests", href: "/dashboard/test" },
+  { icon: AwardIcon, label: "Certificates", href: "/dashboard/certificate" },
   { icon: User, label: "Profile", href: "/dashboard/profile" },
 ]
 

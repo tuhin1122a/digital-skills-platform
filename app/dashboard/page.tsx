@@ -4,52 +4,78 @@ import { Badge } from "@/components/ui/badge"
 import { Trophy, Clock, Target, TrendingUp, Play, CheckCircle, Lock } from "lucide-react"
 import Link from "next/link"
 import { auth } from "@/auth"
+import { fetchUserProgress } from "@/lib/fetchUserProgressData"
 
-const progressData = [
-  { level: "A1", status: "completed", score: 85, unlocked: true },
-  { level: "A2", status: "completed", score: 78, unlocked: true },
-  { level: "B1", status: "available", score: null, unlocked: true },
-  { level: "B2", status: "locked", score: null, unlocked: false },
-  { level: "C1", status: "locked", score: null, unlocked: false },
-  { level: "C2", status: "locked", score: null, unlocked: false },
-]
-
-const stats = [
-  {
-    title: "Tests Completed",
-    value: "2",
-    icon: CheckCircle,
-    color: "text-green-600",
-    bgColor: "bg-green-100",
-  },
-  {
-    title: "Current Level",
-    value: "A2",
-    icon: Trophy,
-    color: "text-blue-600",
-    bgColor: "bg-blue-100",
-  },
-  {
-    title: "Average Score",
-    value: "81%",
-    icon: Target,
-    color: "text-purple-600",
-    bgColor: "bg-purple-100",
-  },
-  {
-    title: "Time Spent",
-    value: "4.5h",
-    icon: Clock,
-    color: "text-orange-600",
-    bgColor: "bg-orange-100",
-  },
-]
+interface ProgressItem {
+  level: string
+  status: "completed" | "available" | "locked"
+  score: number | null
+  unlocked: boolean
+}
 
 export default async function DashboardPage() {
   const session = await auth()
-  console.log(session?.user)
+
+  if (!session?.user) {
+    return <p className="p-8 text-center">Please login to see your dashboard.</p>
+  }
+
+  // AccessToken type assertion (custom user object)
+  const user = session.user as { id: string; name: string; accessToken: string }
+
+  // Fetch user progress data from backend
+  const progressData: ProgressItem[] = await fetchUserProgress(user.id, user.accessToken)
+
+  // Find next test that is available (status = 'available')
   const nextAvailableTest = progressData.find((item) => item.status === "available")
 
+  // Filter tests with status completed
+  const completedTests = progressData.filter((item) => item.status === "completed")
+  const testsCompletedCount = completedTests.length
+
+  const currentLevel = testsCompletedCount > 0 
+    ? completedTests[testsCompletedCount - 1].level 
+    : "0"
+
+  const averageScore = testsCompletedCount > 0
+    ? (
+        completedTests.reduce((acc, cur) => acc + (cur.score ?? 0), 0) / testsCompletedCount
+      ).toFixed(0) + "%"
+    : "0%"
+
+  // TODO: replace with backend data or analytics if available
+  const timeSpent = testsCompletedCount > 0 ? "4.5h" : "0h"
+
+  const stats = [
+    {
+      title: "Tests Completed",
+      value: testsCompletedCount.toString(),
+      icon: CheckCircle,
+      color: "text-green-600",
+      bgColor: "bg-green-100",
+    },
+    {
+      title: "Current Level",
+      value: currentLevel,
+      icon: Trophy,
+      color: "text-blue-600",
+      bgColor: "bg-blue-100",
+    },
+    {
+      title: "Average Score",
+      value: averageScore,
+      icon: Target,
+      color: "text-purple-600",
+      bgColor: "bg-purple-100",
+    },
+    {
+      title: "Time Spent",
+      value: timeSpent,
+      icon: Clock,
+      color: "text-orange-600",
+      bgColor: "bg-orange-100",
+    },
+  ]
 
   return (
     <div className="space-y-8">
@@ -57,7 +83,7 @@ export default async function DashboardPage() {
       <div className="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-lg p-8 text-white">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold mb-2">Welcome back, {session?.user?.name}!</h1>
+            <h1 className="text-3xl font-bold mb-2">Welcome back, {user.name}!</h1>
             <p className="text-blue-100 text-lg">Ready to continue your digital certification journey?</p>
           </div>
           <div className="hidden md:block">
@@ -85,7 +111,7 @@ export default async function DashboardPage() {
         ))}
       </div>
 
-      {/* Progress Overview */}
+      {/* Progress Overview & Next Steps */}
       <div className="grid lg:grid-cols-2 gap-8">
         {/* Certification Progress */}
         <Card>
@@ -96,7 +122,7 @@ export default async function DashboardPage() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {progressData.map((item, index) => (
+            {progressData.map((item) => (
               <div key={item.level} className="flex items-center justify-between p-4 rounded-lg border">
                 <div className="flex items-center space-x-4">
                   <div
@@ -104,8 +130,8 @@ export default async function DashboardPage() {
                       item.status === "completed"
                         ? "bg-green-100"
                         : item.status === "available"
-                          ? "bg-blue-100"
-                          : "bg-gray-100"
+                        ? "bg-blue-100"
+                        : "bg-gray-100"
                     }`}
                   >
                     {item.status === "completed" ? (
@@ -122,17 +148,25 @@ export default async function DashboardPage() {
                       {item.status === "completed"
                         ? `Score: ${item.score}%`
                         : item.status === "available"
-                          ? "Ready to start"
-                          : "Locked"}
+                        ? "Ready to start"
+                        : "Locked"}
                     </p>
                   </div>
                 </div>
                 <Badge
                   variant={
-                    item.status === "completed" ? "default" : item.status === "available" ? "secondary" : "outline"
+                    item.status === "completed"
+                      ? "default"
+                      : item.status === "available"
+                      ? "secondary"
+                      : "outline"
                   }
                 >
-                  {item.status === "completed" ? "Completed" : item.status === "available" ? "Available" : "Locked"}
+                  {item.status === "completed"
+                    ? "Completed"
+                    : item.status === "available"
+                    ? "Available"
+                    : "Locked"}
                 </Badge>
               </div>
             ))}
@@ -153,7 +187,7 @@ export default async function DashboardPage() {
                 <div className="p-6 bg-blue-50 rounded-lg">
                   <h3 className="text-xl font-bold text-blue-900 mb-2">Level {nextAvailableTest.level} Assessment</h3>
                   <p className="text-blue-700 mb-4">You're ready to take your next certification test!</p>
-                  <Link href="/test">
+                  <Link href="/dashboard/test">
                     <Button className="bg-blue-600 hover:bg-blue-700">
                       <Play className="h-4 w-4 mr-2" />
                       Start Test
@@ -214,6 +248,7 @@ export default async function DashboardPage() {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
+            {/* এখানে তুমি রিয়েল ডাটা দেখাতে পারো পরে */}
             <div className="flex items-center space-x-4 p-4 bg-green-50 rounded-lg">
               <CheckCircle className="h-8 w-8 text-green-600" />
               <div className="flex-1">
