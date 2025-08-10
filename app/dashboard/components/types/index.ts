@@ -23,3 +23,27 @@ export interface Stat {
   color: string;
   bgColor: string;
 }
+
+export interface TestResult {
+    score: number;
+    level: string;
+    passed: boolean;
+    totalQuestions: number;
+    correctAnswers: number;
+    timeSpent?: string;
+    passingScore: number;
+    nextLevel: string | null;
+}
+
+export interface Question {
+    id: string;
+    competency: string;
+    level: string;
+    questionText: string;
+    options: string[];
+  }
+  
+  export interface Answer {
+    questionId: string;
+    answer: number;
+  }
