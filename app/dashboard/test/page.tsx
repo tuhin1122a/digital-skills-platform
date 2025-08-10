@@ -8,12 +8,12 @@ import { Progress } from "@/components/ui/progress"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Label } from "@/components/ui/label"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Clock, ChevronLeft, ChevronRight, Flag } from "lucide-react"
+import { Clock, ChevronLeft, ChevronRight } from "lucide-react"
 
 interface Question {
   id: string
   competency: string
-  level: string
+  level: string // ex: "A1", "B2"
   questionText: string
   options: string[]
 }
@@ -30,26 +30,27 @@ export default function TestPage() {
   const [testSubmitted, setTestSubmitted] = useState(false)
   const [loading, setLoading] = useState(true)
 
-  // Calculate total pages
   const totalPages = Math.ceil(sampleQuestions.length / QUESTIONS_PER_PAGE)
 
-  // Get current page questions
   const getCurrentPageQuestions = () => {
     const startIndex = currentPage * QUESTIONS_PER_PAGE
     const endIndex = startIndex + QUESTIONS_PER_PAGE
     return sampleQuestions.slice(startIndex, endIndex)
   }
 
-  // Fetch questions
+  const accessToken = (session?.user as any)?.accessToken || ""
+
   useEffect(() => {
     if (session?.user?.id) {
       const userId = session.user.id
-      const accessToken = session.user.accessToken || ""
-      fetch(`${process.env.NEXT_PUBLIC_API_URL}/questions/${userId}`, {
+      const timestamp = Date.now() // cache busting এর জন্য
+
+      fetch(`${process.env.NEXT_PUBLIC_API_URL}/questions/${userId}?t=${timestamp}`, {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${accessToken}`,
+          "Cache-Control": "no-store", // ক্যাশিং বন্ধ রাখবে
         },
       })
         .then((res) => res.json())
@@ -66,9 +67,8 @@ export default function TestPage() {
           setLoading(false)
         })
     }
-  }, [session])
+  }, [session, accessToken])
 
-  // Timer
   useEffect(() => {
     if (timeLeft > 0 && !testSubmitted) {
       const timer = setTimeout(() => setTimeLeft(timeLeft - 1), 1000)
@@ -107,27 +107,62 @@ export default function TestPage() {
     setCurrentPage(pageIndex)
   }
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
+    if (sampleQuestions.length === 0) return
+
+    const level = sampleQuestions[0]?.level || "A1"
+    const competencyFromQuestion = sampleQuestions[0]?.competency
+
+    const answersArray = Object.entries(answers).map(([questionId, selectedOption]) => ({
+      questionId,
+      selectedOption,
+    }))
+
     setTestSubmitted(true)
     setShowSubmitDialog(false)
-    setTimeout(() => {
-      window.location.href = "/results"
-    }, 1000)
+
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/results/submit`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({
+          userId: session?.user?.id,
+          level,
+          competency: competencyFromQuestion,
+          answers: answersArray,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        setTimeout(() => {
+          window.location.href = "/dashboard/results"
+        }, 1000)
+      } else {
+        setTestSubmitted(false)
+      }
+    } catch (error) {
+      setTestSubmitted(false)
+    }
   }
 
   const handleAutoSubmit = () => {
     setTestSubmitted(true)
     setTimeout(() => {
-      window.location.href = "/results"
+      window.location.href = "/dashboard/results"
     }, 2000)
   }
 
   const progress = ((currentPage + 1) / totalPages) * 100
   const answeredQuestions = Object.keys(answers).length
-
-  // Get questions answered on current page
   const currentPageQuestions = getCurrentPageQuestions()
   const currentPageAnswered = currentPageQuestions.filter((q) => answers[q.id] !== undefined).length
+
+  const currentLevel = currentPageQuestions.length > 0 ? currentPageQuestions[0].level : "N/A"
 
   if (loading) {
     return (
@@ -165,7 +200,9 @@ export default function TestPage() {
       <header className="bg-white shadow-sm border-b">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
           <div>
-            <h1 className="text-2xl font-bold">Step 1: B1 Level Assessment</h1>
+            <h1 className="text-2xl font-bold">
+              Step {currentPage + 1}: {currentLevel} Level Assessment
+            </h1>
             <p className="text-gray-600">Digital Skills Certification Test</p>
           </div>
           <div className="flex items-center space-x-2 bg-red-50 px-4 py-2 rounded-lg">
@@ -182,8 +219,7 @@ export default function TestPage() {
         <div className="mb-8">
           <div className="flex justify-between mb-2">
             <span className="text-sm font-medium">
-              Page {currentPage + 1} of {totalPages} ({currentPageAnswered}/{currentPageQuestions.length} answered on
-              this page)
+              Page {currentPage + 1} of {totalPages} ({currentPageAnswered}/{currentPageQuestions.length} answered on this page)
             </span>
             <span className="text-sm text-gray-600">
               {answeredQuestions} of {sampleQuestions.length} total answered
@@ -227,23 +263,21 @@ export default function TestPage() {
         </div>
 
         {/* Navigation */}
-        <div className="flex justify-between">
+        <div className="flex justify-between items-center">
           <Button variant="outline" onClick={handlePreviousPage} disabled={currentPage === 0}>
             <ChevronLeft className="h-4 w-4 mr-2" /> Previous Page
           </Button>
 
           <div className="flex items-center space-x-4">
-            <Button variant="outline" onClick={() => setShowSubmitDialog(true)} className="text-red-600">
-              <Flag className="h-4 w-4 mr-2" /> Submit Test
-            </Button>
-
-            {currentPage < totalPages - 1 ? (
-              <Button onClick={handleNextPage}>
-                Next Page <ChevronRight className="h-4 w-4 ml-2" />
-              </Button>
-            ) : (
+            {currentPage === totalPages - 1 && (
               <Button onClick={() => setShowSubmitDialog(true)} className="bg-green-600">
                 Finish Test
+              </Button>
+            )}
+
+            {currentPage < totalPages - 1 && (
+              <Button onClick={handleNextPage}>
+                Next Page <ChevronRight className="h-4 w-4 ml-2" />
               </Button>
             )}
           </div>
@@ -257,7 +291,6 @@ export default function TestPage() {
           <CardContent>
             <div className="grid grid-cols-10 gap-2">
               {Array.from({ length: totalPages }, (_, pageIndex) => {
-                // Count answered questions for this page
                 const pageStartIndex = pageIndex * QUESTIONS_PER_PAGE
                 const pageEndIndex = Math.min(pageStartIndex + QUESTIONS_PER_PAGE, sampleQuestions.length)
                 const pageQuestions = sampleQuestions.slice(pageStartIndex, pageEndIndex)
@@ -274,8 +307,8 @@ export default function TestPage() {
                       isPageFullyAnswered
                         ? "bg-green-100 border-green-300 text-green-800 hover:bg-green-200"
                         : hasPartialAnswers
-                          ? "bg-yellow-100 border-yellow-300 text-yellow-800 hover:bg-yellow-200"
-                          : ""
+                        ? "bg-yellow-100 border-yellow-300 text-yellow-800 hover:bg-yellow-200"
+                        : ""
                     }`}
                     onClick={() => goToPage(pageIndex)}
                   >
@@ -325,7 +358,10 @@ export default function TestPage() {
             <Button variant="outline" onClick={() => setShowSubmitDialog(false)} className="flex-1">
               Continue Test
             </Button>
-            <Button onClick={handleSubmit} className="flex-1 bg-red-600 hover:bg-red-700">
+            <Button
+              onClick={handleSubmit}
+              className="flex-1 bg-red-600 hover:bg-red-700"
+            >
               Submit Test
             </Button>
           </div>
