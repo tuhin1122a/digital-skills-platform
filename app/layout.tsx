@@ -5,9 +5,24 @@ import './globals.css'
 import { SessionProvider } from 'next-auth/react'
 
 export const metadata: Metadata = {
-  title: 'v0 App',
-  description: 'Created with v0',
-  generator: 'v0.dev',
+  title: "Digital Skills Platform",
+  description: "A modern platform to assess, certify, and improve your digital skills.",
+  generator: "Next.js,tailwindCss and express.js",
+  keywords: [
+    "Digital Skills",
+    "Online Assessment",
+    "Certification",
+    "Skill Test",
+    "Next.js"
+  ],
+  authors: [{ name: "Tuhinur Rahman" }],
+  openGraph: {
+    title: "Digital Skills Platform",
+    description: "Test and certify your digital competencies online.",
+    url: "https://digital-skills-platform-efhn.vercel.app",
+    siteName: "Digital Skills Platform",
+    type: "website"
+  }
 }
 
 export default function RootLayout({

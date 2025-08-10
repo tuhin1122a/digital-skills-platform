@@ -158,7 +158,7 @@ export default function RegisterPage() {
             Start your journey to digital certification. Validate your skills and advance your career.
           </p>
           <Image
-            src="/placeholder.svg?height=300&width=400"
+            src="/reset-password-illustration.png"
             alt="Registration Illustration"
             width={400}
             height={300}

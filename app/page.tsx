@@ -98,7 +98,7 @@ export default function LandingPage() {
 
             <div className="relative">
               <Image
-                src="/placeholder.svg?height=500&width=600"
+                src="https://images.unsplash.com/photo-1521312639858-5b042542f2a5?q=80&w=1470&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
                 alt="Digital Skills Certification"
                 width={600}
                 height={500}

@@ -68,7 +68,7 @@ export default function LoginPage() {
             Continue your digital certification journey. Access your tests and track your progress.
           </p>
           <Image
-            src="/placeholder.svg?height=300&width=400"
+            src="/forgot-password-illustration.png"
             alt="Login Illustration"
             width={400}
             height={300}
